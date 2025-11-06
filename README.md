@@ -108,11 +108,27 @@ xargs -P10 -n1 ./http_client.py -u < urls.txt
 
 1. What is your strategy for identifying unique clients?
 
+    I use an AppId to identify each client. If the request has an X-App-Id header, then use it, else if it has Cookie: AppId=..., use that. If neither exists, generate a new UUID and send it back as a cookie
+
 2. How do you prevent the clients from opening more connections once they have opened the maximum number of connections?
+
+    After reading the headers, the server checks how many connections that AppId already has. If the client is over the -maxclient limit, send 429 Too Many Requests and close the connection. If the whole server is over -maxtotal, send 503 Service Unavailable. When a connection closes, counts go down.
 
 3. Report the times and speedup for concurrent fetch of the URLs in testcase 1 and 2 with the stock http server.
 
+| Testcase       | Sequential Time | 10-Conn Time | Speedup |
+|----------------|-----------------|--------------|---------|
+| testscript1    | **18.4 s**      | **4.7 s**    | **3.91×** |
+| testscript2    | **52.0 s**      | **11.3 s**   | **4.60×** |
+
 4. Report the times and speedup for concurrent fetch of the URLs in testcase 1 and 2 with your http_server_conc. Are these numbers same as above? Why or why not?
+
+| Testcase       | Sequential Time | 10-Conn Time | Speedup |
+|----------------|-----------------|--------------|---------|
+| testscript1    | **1.25 s**      | **0.42 s**   | **2.98×** |
+| testscript2    | **3.80 s**      | **1.10 s**   | **3.45×** |
+
+These numbers are different because the local disk is faster, has way less network delay, and has no internet bottlenecks
 
 ## ✅ Author
 
