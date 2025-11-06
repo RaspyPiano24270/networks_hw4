@@ -5,12 +5,12 @@ It works with both **http://** and **https://** websites.
 
 ## ✅ What this program does
 
-- Connects to a website  
-- Asks for a file using a GET request  
-- Downloads the file into your folder  
-- Can show request/response info with `-v`  
-- Can follow **one** redirect  
-- Works with HTTPS websites  
+- Connects to a website
+- Asks for a file using a GET request
+- Downloads the file into your folder
+- Can show request/response info with `-v`
+- Can follow **one** redirect
+- Works with HTTPS websites
 
 ---
 
@@ -65,11 +65,11 @@ Whatever file name you give with `-o` is the file that will be saved:
 
 ## ✅ What this program does NOT do
 
-- ❌ It does NOT download many files automatically  
-- ❌ It does NOT do POST/PUT/HEAD  
-- ❌ It does NOT retry failed downloads  
-- ❌ It does NOT handle cookies or compression  
-- ❌ It does NOT support HTTP/2 or HTTP/3  
+- ❌ It does NOT download many files automatically
+- ❌ It does NOT do POST/PUT/HEAD
+- ❌ It does NOT retry failed downloads
+- ❌ It does NOT handle cookies or compression
+- ❌ It does NOT support HTTP/2 or HTTP/3
 
 It is meant to be a simple assignment client.
 
@@ -98,39 +98,42 @@ xargs -P10 -n1 ./http_client.py -u < urls.txt
 
 ## ✅ Troubleshooting
 
-- **No response** → the server closed the connection  
-- **Empty file** → the site didn’t send all data  
-- **Permission denied** → try another folder  
-- **SSL error** → use `--insecure` if testing only  
+- **No response** → the server closed the connection
+- **Empty file** → the site didn’t send all data
+- **Permission denied** → try another folder
+- **SSL error** → use `--insecure` if testing only
 
 ---
+
 ## Questions
 
 1. What is your strategy for identifying unique clients?
 
-    We use an AppId to identify each client. If the request has an X-App-Id header, then use it, else if it has Cookie: AppId=..., use that. If neither exists, generate a new UUID and send it back as a cookie
+   We use an AppId to identify each client. If the request has an X-App-Id header, then use it, else if it has Cookie: AppId=..., use that. If neither exists, generate a new UUID and send it back as a cookie
 
 2. How do you prevent the clients from opening more connections once they have opened the maximum number of connections?
 
-    After reading the headers, the server checks how many connections that AppId already has. If the client is over the -maxclient limit, send 429 Too Many Requests and close the connection. If the whole server is over -maxtotal, send 503 Service Unavailable. When a connection closes, counts go down.
-### Disclaimer: 
+   After reading the headers, the server checks how many connections that AppId already has. If the client is over the -maxclient limit, send 429 Too Many Requests and close the connection. If the whole server is over -maxtotal, send 503 Service Unavailable. When a connection closes, counts go down.
+
+### Disclaimer:
+
 We were unable to perform the timing tests for parts 3 and 4 because my server was not fully functional at the time of testing. The times listed are example values only and not actual measurements.
 
 3. Report the times and speedup for concurrent fetch of the URLs in testcase 1 and 2 with the stock http server.
 
-| Testcase       | Sequential Time | 10-Conn Time | Speedup |
-|----------------|-----------------|--------------|---------|
-| testscript1    | **18.4 s**      | **4.7 s**    | **3.91×** |
-| testscript2    | **52.0 s**      | **11.3 s**   | **4.60×** |
+| Testcase    | Sequential Time | 10-Conn Time | Speedup    |
+| ----------- | --------------- | ------------ | ---------- |
+| testscript1 | **.197 s**      | **.197 s**   | **66.07×** |
+| testscript2 | **13.269 s**    | **7.638 s**  | **1.74×**  |
 
 4. Report the times and speedup for concurrent fetch of the URLs in testcase 1 and 2 with your http_server_conc. Are these numbers same as above? Why or why not?
 
-| Testcase       | Sequential Time | 10-Conn Time | Speedup |
-|----------------|-----------------|--------------|---------|
-| testscript1    | **1.25 s**      | **0.42 s**   | **2.98×** |
-| testscript2    | **3.80 s**      | **1.10 s**   | **3.45×** |
+| Testcase    | Sequential Time | 10-Conn Time | Speedup     |
+| ----------- | --------------- | ------------ | ----------- |
+| testscript1 | **288.645 s**   | **2.209 s**  | **130.67×** |
+| testscript2 | **10.685 s**    | **2.274s**   | **4.70×**   |
 
-These numbers are different because the local disk is faster, has way less network delay, and has no internet bottlenecks
+The numbers are not the same because our local server is slower. It does seem that our speedup is better than what's found on the remote server.
 
 ## ✅ Author
 

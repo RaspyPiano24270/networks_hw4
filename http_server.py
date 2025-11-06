@@ -14,33 +14,24 @@ import argparse
 #          4) The User's session_id
 def parse_request(request_data):
     lines = request_data.splitlines()
-    if not lines:
-        return None, None, None, None
+    if not lines: return None, None, None, None
 
-    # Parse the request line: e.g., "GET /index.html HTTP/1.0"
     parts = lines[0].split()
-    if len(parts) < 2:
-        return None, None, None, None
+    if len(parts) < 2: return None, None, None, None
+    method, path = parts[0], parts[1]
 
-    method = parts[0]
-    path = parts[1]
-
-    # Extract User-Agent header if available
-    user_agent = None
-    session_id = None # new for hw4
-    for line in lines:
-        if line.lower().startswith("user-agent:"):
+    user_agent, session_id = None, None
+    for line in lines[1:]:
+        lower = line.lower()
+        if lower.startswith("user-agent:"):
             user_agent = line.split(":", 1)[1].strip()
-            
-        # parses cookie's session id    
-        if line.lower().startswith("cookie:"):
+        elif lower.startswith("cookie:"):
             cookies = line.split(":", 1)[1].strip()
-
-            for cookie in cookies.split(';'):
-                if cookie.startswith("session_id="):
-                    session_id = cookies.split("=", 1)[1]
+            for cookie in cookies.split(";"):
+                k, _, v = cookie.strip().partition("=")
+                if k.strip() == "session_id":
+                    session_id = v.strip()
                     break
-
     return method, path, user_agent, session_id
 
 # Based on the file extension (e.g., .html, .png, .pdf), determine the correct
@@ -67,30 +58,19 @@ def get_content_type(file_path):
 # Construct the complete HTTP response message, including headers and the body.
 #          Handles Success and Failure cases
 def build_response(status_code, content_type=None, body=None, set_cookie_id=None):
-    reasons = {
-        200: "OK",
-        403: "Forbidden",
-        404: "Not Found",
-        429: "Too Many Requests" # for hw4, when user has too many connections
-    }
-
-    reason = reasons.get(status_code, "Unknown")
+    reasons = {200:"OK",403:"Forbidden",404:"Not Found",429:"Too Many Requests"}
+    reason = reasons.get(status_code,"Unknown")
     response = f"HTTP/1.0 {status_code} {reason}\r\n"
-
     if content_type:
         response += f"Content-Type: {content_type}\r\n"
-
     if set_cookie_id:
-        response += f"Set-Cookie: session_id={set_cookie_id}; HttpOnly\r\n" # for hw4, sent back to user
 
-    response += "\r\n"  # End of headers
-
-    if body:
-        if isinstance(body, str):
-            body = body.encode()
-        return response.encode() + body
-    else:
-        return response.encode()
+        response += f"Set-Cookie: session_id={set_cookie_id}; Path=/; HttpOnly\r\n"
+    response += "Connection: close\r\n"  
+    response += "\r\n"
+    if body and isinstance(body, str):
+        body = body.encode()
+    return response.encode() + (body or b"")
 
 
 # --- 3. Client Connection Handler ---                                                                      <- Section 3
@@ -98,7 +78,7 @@ def process_http_request(client_socket, method, path, user_agent, cookie_to_set=
     # If the browser is not allowed, send a 403 response
     if user_agent and "curl" in user_agent.lower():
         body = "<html><body><h1>403 Forbidden</h1></body></html>"
-        response = build_response(403, "text/html", body, cookie_to_set=cookie_to_set)
+        response = build_response(403, "text/html", body, set_cookie_id=cookie_to_set)
         client_socket.sendall(response)
         return
     
@@ -111,7 +91,7 @@ def process_http_request(client_socket, method, path, user_agent, cookie_to_set=
     # Builds and sends response if it doens't exist
     if not os.path.isfile(file_path):
         body = "<html><body><h1>404 Not Found</h1></body></html>"
-        response = build_response(404, "text/html", body, cookie_to_set=cookie_to_set)
+        response = build_response(404, "text/html", body, set_cookie_id=cookie_to_set)
         client_socket.sendall(response)
         return
 
@@ -120,7 +100,7 @@ def process_http_request(client_socket, method, path, user_agent, cookie_to_set=
         content = f.read()
 
     content_type = get_content_type(file_path)
-    response = build_response(200, content_type, content)
+    response = build_response(200, content_type, content, set_cookie_id=cookie_to_set)
     client_socket.sendall(response)    
 
 def handle_connection_thread(client_socket, client_addr, semaphore, client_counts, lock, max_per_client):
@@ -142,13 +122,11 @@ def handle_connection_thread(client_socket, client_addr, semaphore, client_count
             return
         
         if session_id:
-            # if cookie alr exists
             client_id_to_track = session_id
+            cookie_to_set = None
         else:
-            # new client. generate an ID and store cookie to set
-            client_id_to_track = str(uuid.uuid4())
-            cookie_to_set = client_id_to_track
-
+            client_id_to_track = f"ip:{client_addr[0]}"   # temporary key until cookie lands
+            cookie_to_set = str(uuid.uuid4()) 
         # to check client connection limit
         with lock:
             current_count = client_counts.get(client_id_to_track, 0)
@@ -158,7 +136,7 @@ def handle_connection_thread(client_socket, client_addr, semaphore, client_count
                 #reject connection
                 print(f"REJECTED: Client {client_id_to_track} at {current_count} connections.")
                 body = "<html><body><h1>429 Too Many Requests</h1></body></html>"
-                response = build_response(429, body, cookie_to_set=cookie_to_set)
+                response = build_response(429, "text/html", body, set_cookie_id=cookie_to_set)
                 client_socket.sendall(response)
                 return # close thread
             
@@ -207,7 +185,8 @@ def main():
     client_lock = threading.Lock()
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
     server_socket.bind(("0.0.0.0", port))
     server_socket.listen(MAX_TOTAL_CONNECTIONS)
 
