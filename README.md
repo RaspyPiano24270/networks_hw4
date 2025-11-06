@@ -113,7 +113,8 @@ xargs -P10 -n1 ./http_client.py -u < urls.txt
 2. How do you prevent the clients from opening more connections once they have opened the maximum number of connections?
 
     After reading the headers, the server checks how many connections that AppId already has. If the client is over the -maxclient limit, send 429 Too Many Requests and close the connection. If the whole server is over -maxtotal, send 503 Service Unavailable. When a connection closes, counts go down.
-
+### Disclaimer: 
+I was unable to perform the timing tests for parts 3 and 4 because my server was not fully functional at the time of testing. The times listed are example values only and not actual measurements.
 3. Report the times and speedup for concurrent fetch of the URLs in testcase 1 and 2 with the stock http server.
 
 | Testcase       | Sequential Time | 10-Conn Time | Speedup |
