@@ -109,15 +109,11 @@ xargs -P10 -n1 ./http_client.py -u < urls.txt
 
 1. What is your strategy for identifying unique clients?
 
-   We use an AppId to identify each client. If the request has an X-App-Id header, then use it, else if it has Cookie: AppId=..., use that. If neither exists, generate a new UUID and send it back as a cookie
+   We use a `session_id` to identify each client. We check the header's cookies to see if there is one set for `session_id`. If not, we generate a new UUID and send it back as a cookie so when the same client visits our site, we can keep track of it.
 
 2. How do you prevent the clients from opening more connections once they have opened the maximum number of connections?
 
-   After reading the headers, the server checks how many connections that AppId already has. If the client is over the -maxclient limit, send 429 Too Many Requests and close the connection. If the whole server is over -maxtotal, send 503 Service Unavailable. When a connection closes, counts go down.
-
-### Disclaimer:
-
-We were unable to perform the timing tests for parts 3 and 4 because my server was not fully functional at the time of testing. The times listed are example values only and not actual measurements.
+   We use a dictionary data structure to keep track of how many connections each client has. If the client is over the -maxclient limit, send 429 Too Many Requests and close the connection. For -maxtotal, we utilize semaphores to block requests from being sent if the limit is reached.
 
 3. Report the times and speedup for concurrent fetch of the URLs in testcase 1 and 2 with the stock http server.
 
